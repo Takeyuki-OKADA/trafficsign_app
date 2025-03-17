@@ -130,6 +130,6 @@ def predict():
 
 # ✅ Flask アプリ起動 (Render用)
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Renderの環境変数 PORT を使用
+    port = int(os.environ.get("PORT", 10000))  # Render の PORT 環境変数を取得
     logger.info(f"🚀 アプリ起動: ポート {port}")
-app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)), debug=True)
+app.run(host="0.0.0.0", port=port, debug=False)
