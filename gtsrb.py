@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import tensorflow as tf
 import logging
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, jsonify
 from tensorflow.keras.models import load_model
 from datetime import datetime
 
@@ -14,19 +14,16 @@ logger = logging.getLogger(__name__)
 # ✅ クラスラベル（GTSRB 公式ラベルを使用）
 CLASS_LABELS = [
     "制限速度 20km/h", "制限速度 30km/h", "制限速度 50km/h", "制限速度 60km/h", "制限速度 70km/h",
-    "制限速度 80km/h", "制限速度 80km/h 終了", "制限速度 100km/h","制限速度 120km/h", "追い越し禁止",
-    "大型追い越し禁止", "次の交差点優先", "優先", "譲れ", "停止", "車両進入禁止", "大型禁止", "進入禁止", "警告","左カーブ",
-    "右カーブ", "連続カーブ", "凹凸", "スリップ","幅員減少", "工事", "信号", "歩行者","飛び出し", "自転車",
-    "凍結", "動物", "解除","右折のみ", "左折のみ", "直進", "直進・右折", "直進・左折", "右折専用レーン", "左折専用レーン",
-    "環状交差点", "追い越し制限解除","大型車追い越し制限解除"
+    "制限速度 80km/h", "制限速度 80km/h 終了", "制限速度 100km/h", "制限速度 120km/h", "追い越し禁止",
+    "大型追い越し禁止", "次の交差点優先", "優先", "譲れ", "停止", "車両進入禁止", "大型禁止", "進入禁止", "警告", "左カーブ",
+    "右カーブ", "連続カーブ", "凹凸", "スリップ", "幅員減少", "工事", "信号", "歩行者", "飛び出し", "自転車",
+    "凍結", "動物", "解除", "右折のみ", "左折のみ", "直進", "直進・右折", "直進・左折", "右折専用レーン", "左折専用レーン",
+    "環状交差点", "追い越し制限解除", "大型車追い越し制限解除"
 ]
 
 # ✅ 必要なフォルダを作成
 for folder in ["debug_images", "input_images", "static", "templates"]:
     os.makedirs(folder, exist_ok=True)
-
-# ✅ Flask アプリのセットアップ
-app = Flask(__name__)
 
 # ✅ 最新の学習済みモデルをロード
 def get_latest_model():
@@ -64,7 +61,10 @@ def preprocess_image(image_path, save_debug=False):
     
     return img_array
 
-# ✅ ルートパス（画像アップロード & 推論）
+# ✅ Flask アプリのセットアップ
+app = Flask(__name__)
+
+# ✅ ルートパス（Web UI）
 @app.route("/", methods=["GET", "POST"])
 def upload_file():
     if request.method == "GET":
@@ -102,8 +102,34 @@ def upload_file():
             logger.error(f"❌ 推論エラー: {e}")
             return render_template("index.html", answer="❌ 推論に失敗しました", processing=False)
 
-# ✅ Flask アプリ起動
+# ✅ REST API で推論
+@app.route("/predict", methods=["POST"])
+def predict():
+    if "file" not in request.files:
+        return jsonify({"error": "❌ 画像がアップロードされていません"}), 400
+
+    file = request.files["file"]
+    filename = f"input_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+    file_path = os.path.join("input_images", filename)
+    file.save(file_path)
+    logger.info(f"✅ 画像を保存: {file_path}")
+
+    # 画像の前処理
+    img = preprocess_image(file_path)
+    if img is None:
+        return jsonify({"error": "❌ 画像の処理に失敗しました"}), 400
+
+    # 推論
+    try:
+        predictions = model.predict(img)[0]
+        predicted_class = int(np.argmax(predictions))
+        return jsonify({"prediction": predicted_class, "label": CLASS_LABELS[predicted_class]})
+    except Exception as e:
+        logger.error(f"❌ 推論エラー: {e}")
+        return jsonify({"error": "❌ 推論に失敗しました"}), 500
+
+# ✅ Flask アプリ起動 (Render用)
 if __name__ == "__main__":
-    port = 5000
+    port = int(os.environ.get("PORT", 5000))  # Renderの環境変数 PORT を使用
     logger.info(f"🚀 アプリ起動: ポート {port}")
     app.run(host="0.0.0.0", port=port, debug=True)
