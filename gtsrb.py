@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import tensorflow as tf
 import logging
-from flask import Flask, request, render_template, jsonify
+from flask import Flask, request, render_template, jsonify, send_from_directory
 from tensorflow.keras.models import load_model
 from datetime import datetime
 
@@ -65,24 +65,34 @@ def preprocess_image(image_path, save_debug=False):
     return img_array
 
 # ✅ Flask アプリのセットアップ
-app = Flask(__name__)
+app = Flask(__name__, static_folder="static", template_folder="templates")
+
+# ✅ Favicon.ico の 404 を回避
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory("static", "favicon.ico", mimetype="image/vnd.microsoft.icon")
+
+# ✅ 静的ファイル（CSS, JS, 画像）を明示的に提供
+@app.route("/static/<path:filename>")
+def static_files(filename):
+    return send_from_directory("static", filename)
 
 # ✅ API ステータス確認用
 @app.route("/", methods=["GET", "HEAD"])
 def home():
     if request.method == "HEAD":
         return "", 200
-    return jsonify({"message": "Traffic Sign Recognition API is running."}), 200
+    return render_template("index.html", answer="", processing=False)
 
 # ✅ ファイルアップロード用エンドポイント（Web UI）
 @app.route("/upload", methods=["POST"])
 def upload_file():
     if "file" not in request.files:
-        return jsonify({"error": "❌ 画像がアップロードされていません"}), 400
+        return render_template("index.html", answer="❌ 画像がアップロードされていません", processing=False)
 
     file = request.files["file"]
     if file.filename == "":
-        return jsonify({"error": "❌ ファイルが選択されていません"}), 400
+        return render_template("index.html", answer="❌ ファイルが選択されていません", processing=False)
 
     # ✅ ファイルを保存
     filename = f"input_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
@@ -93,20 +103,20 @@ def upload_file():
     # ✅ 画像の前処理
     img_array = preprocess_image(file_path, save_debug=True)
     if img_array is None:
-        return jsonify({"error": "❌ 画像の処理に失敗しました"}), 400
+        return render_template("index.html", answer="❌ 画像の処理に失敗しました", processing=False)
 
     try:
-        # ✅ モデルで推論（最も確率の高いクラスのみ取得）
+        # ✅ モデルで推論
         predictions = model.predict(img_array)[0]
         predicted_class = np.argmax(predictions)
         answer = f"これは **{CLASS_LABELS[predicted_class]}** です"
         
         logger.info(f"✅ 推論結果: {answer.replace('**', '')}")
-        return jsonify({"message": answer, "label": CLASS_LABELS[predicted_class]}), 200
+        return render_template("index.html", answer=answer, processing=False)
 
     except Exception as e:
         logger.error(f"❌ 推論エラー: {e}")
-        return jsonify({"error": "❌ 推論に失敗しました"}), 500
+        return render_template("index.html", answer="❌ 推論に失敗しました", processing=False)
 
 # ✅ REST API で推論
 @app.route("/predict", methods=["POST"])
@@ -125,7 +135,6 @@ def predict():
     if img is None:
         return jsonify({"error": "❌ 画像の処理に失敗しました"}), 400
 
-    # 推論
     try:
         predictions = model.predict(img)[0]
         predicted_class = int(np.argmax(predictions))
