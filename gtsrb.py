@@ -7,6 +7,9 @@ from flask import Flask, request, render_template, jsonify
 from tensorflow.keras.models import load_model
 from datetime import datetime
 
+# ✅ CUDA を無効化（Render は GPU 未対応）
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
 # ✅ ログの設定
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -64,43 +67,46 @@ def preprocess_image(image_path, save_debug=False):
 # ✅ Flask アプリのセットアップ
 app = Flask(__name__)
 
-# ✅ ルートパス（Web UI）
-@app.route("/", methods=["GET", "POST"])
+# ✅ API ステータス確認用
+@app.route("/", methods=["GET", "HEAD"])
+def home():
+    if request.method == "HEAD":
+        return "", 200
+    return jsonify({"message": "Traffic Sign Recognition API is running."}), 200
+
+# ✅ ファイルアップロード用エンドポイント（Web UI）
+@app.route("/upload", methods=["POST"])
 def upload_file():
-    if request.method == "GET":
-        return render_template("index.html", answer="", processing=False)
+    if "file" not in request.files:
+        return jsonify({"error": "❌ 画像がアップロードされていません"}), 400
 
-    if request.method == "POST":
-        if "file" not in request.files:
-            return render_template("index.html", answer="❌ ファイルがありません", processing=False)
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "❌ ファイルが選択されていません"}), 400
 
-        file = request.files["file"]
-        if file.filename == "":
-            return render_template("index.html", answer="❌ ファイルが選択されていません", processing=False)
+    # ✅ ファイルを保存
+    filename = f"input_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+    file_path = os.path.join("input_images", filename)
+    file.save(file_path)
+    logger.info(f"✅ 画像を保存: {file_path}")
 
-        # ✅ ファイルを保存
-        filename = f"input_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-        file_path = os.path.join("input_images", filename)
-        file.save(file_path)
-        logger.info(f"✅ 画像を保存: {file_path}")
+    # ✅ 画像の前処理
+    img_array = preprocess_image(file_path, save_debug=True)
+    if img_array is None:
+        return jsonify({"error": "❌ 画像の処理に失敗しました"}), 400
 
-        # ✅ 画像の前処理
-        img_array = preprocess_image(file_path, save_debug=True)
-        if img_array is None:
-            return render_template("index.html", answer="❌ 画像の処理に失敗しました", processing=False)
+    try:
+        # ✅ モデルで推論（最も確率の高いクラスのみ取得）
+        predictions = model.predict(img_array)[0]
+        predicted_class = np.argmax(predictions)
+        answer = f"これは **{CLASS_LABELS[predicted_class]}** です"
+        
+        logger.info(f"✅ 推論結果: {answer.replace('**', '')}")
+        return jsonify({"message": answer, "label": CLASS_LABELS[predicted_class]}), 200
 
-        try:
-            # ✅ モデルで推論（最も確率の高いクラスのみ取得）
-            predictions = model.predict(img_array)[0]
-            predicted_class = np.argmax(predictions)
-            answer = f"これは **{CLASS_LABELS[predicted_class]}** です"
-            
-            logger.info(f"✅ 推論結果: {answer.replace('**', '')}")
-            return render_template("index.html", answer=answer, processing=False)
-
-        except Exception as e:
-            logger.error(f"❌ 推論エラー: {e}")
-            return render_template("index.html", answer="❌ 推論に失敗しました", processing=False)
+    except Exception as e:
+        logger.error(f"❌ 推論エラー: {e}")
+        return jsonify({"error": "❌ 推論に失敗しました"}), 500
 
 # ✅ REST API で推論
 @app.route("/predict", methods=["POST"])
@@ -123,7 +129,7 @@ def predict():
     try:
         predictions = model.predict(img)[0]
         predicted_class = int(np.argmax(predictions))
-        return jsonify({"prediction": predicted_class, "label": CLASS_LABELS[predicted_class]})
+        return jsonify({"prediction": predicted_class, "label": CLASS_LABELS[predicted_class]}), 200
     except Exception as e:
         logger.error(f"❌ 推論エラー: {e}")
         return jsonify({"error": "❌ 推論に失敗しました"}), 500
@@ -132,4 +138,4 @@ def predict():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))  # Render の PORT 環境変数を取得
     logger.info(f"🚀 アプリ起動: ポート {port}")
-app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=False)
