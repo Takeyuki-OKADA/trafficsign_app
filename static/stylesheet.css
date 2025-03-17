@@ -1,0 +1,70 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f5f5f5;
+    text-align: center;
+    padding: 20px;
+}
+
+h1 {
+    color: #333;
+}
+
+/* ファイル選択ボタン */
+.file_choose {
+    display: inline-block;
+    padding: 10px;
+    background-color: #007bff;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 10px;
+    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+}
+
+/* ファイル選択ボタンのホバー時 */
+.file_choose:hover {
+    transform: scale(1.2); /* 1.2倍に拡大 */
+    box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* ファイル入力を非表示 */
+input[type="file"] {
+    display: none;
+}
+
+/* 画像プレビュー */
+.preview-img {
+    max-width: 100%;
+    height: auto;
+    margin-top: 10px;
+}
+
+/* 送信ボタン */
+.btn {
+    padding: 10px 20px;
+    font-size: 18px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+}
+
+/* 送信ボタンのホバー時 */
+.btn:hover {
+    transform: scale(1.2); /* 1.2倍に拡大 */
+    box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* 無効状態の送信ボタン */
+.btn:disabled {
+    background-color: #aaa;
+}
+
+/* 推論結果の表示 */
+.answer {
+    font-size: 24px;
+    font-weight: bold;
+    margin-top: 20px;
+}

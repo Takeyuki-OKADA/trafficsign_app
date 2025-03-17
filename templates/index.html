@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>標識認識AI</title>
+    <link rel="stylesheet" href="./static/stylesheet.css">
+    <script>
+        function previewImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                console.log("選択されたファイル:", file.name); // デバッグ用
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('imagePreview');
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                    preview.style.width = '200px';  
+                    preview.style.height = '200px';
+                }
+                reader.readAsDataURL(file);
+            }
+            document.getElementById('submitButton').disabled = false;
+            document.getElementById('submitButton').value = "送信する";
+            document.getElementById('result').innerText = '';
+        }
+
+        function disableButton() {
+            console.log("画像送信開始"); // デバッグ用
+            const button = document.getElementById('submitButton');
+            button.disabled = true;
+            button.value = '解析中...';
+        }
+    </script>
+</head>
+<body>
+    <header>   
+        <h1 class="header-logo"><a href="#">標識認識AI</a></h1>
+    </header>
+
+    <main class="main">    
+        <h2>AIがドイツの標識を解析して識別します</h2>
+        <p>ドイツの交通標識の画像を送信してください</p>
+
+        <form method="POST" enctype="multipart/form-data" onsubmit="disableButton()">
+            <label for="fileInput" class="file_choose">画像を選択</label>
+            <input id="fileInput" type="file" name="file" accept="image/*" onchange="previewImage(event)" required>
+            <br>
+            <img id="imagePreview" style="display:none; width:200px; height:200px; border-radius: 10px; margin: 10px auto;" alt="選択した画像のプレビュー">
+            <br>
+            <input id="submitButton" class="btn" type="submit" value="送信する" disabled>
+        </form>
+
+        <div id="result" class="answer" style="font-size: 24px; font-weight: bold;">{{ answer | safe }}</div>
+
+        {% if image_path %}
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                const preview = document.getElementById('imagePreview');
+                preview.src = "{{ image_path }}";
+                preview.style.display = 'block';
+                preview.style.width = '200px';
+                preview.style.height = '200px';
+            });
+        </script>
+        {% endif %}
+    </main>
+
+    <footer>    
+        <small>&copy; 2025 すし太郎</small>   
+    </footer>
+</body>
+</html>
