@@ -8,6 +8,7 @@ import tensorflow as tf
 from flask import Flask, request, render_template, send_from_directory
 from tensorflow.keras.models import load_model
 import re
+from datetime import datetime
 
 # ✅ OpenCV のインストールチェック
 try:
