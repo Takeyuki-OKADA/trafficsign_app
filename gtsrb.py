@@ -41,7 +41,7 @@ for folder in ["debug_images", "input_images", "static", "templates"]:
 app = Flask(__name__)
 
 # ✅ 学習済みモデルのロード
-model = load_model("./model_R23.keras", compile=False)
+model = load_model("./model_R32.keras", compile=False)
 logger.info("モデルロード完了")
 
 # ✅ ファイル名の正規化
